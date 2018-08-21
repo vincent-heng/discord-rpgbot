@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"database/sql"
@@ -35,11 +33,10 @@ func main() {
 
 	// Database
 	db, err = initDb()
-	checkErr(err)
+	if err != nil {
+		log.Fatalf("error connecting to database: %v", err)
+	}
 	defer db.Close()
-
-	err = db.Ping()
-	checkErr(err)
 
 	// Discord
 	dg, err := discordgo.New("Bot " + configuration.DiscordBotKey)
@@ -53,30 +50,18 @@ func main() {
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
 	if err != nil {
-		fmt.Println("error opening connection,", err)
+		log.Println("error opening connection,", err)
 		return
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
-	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
+	log.Println("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 
 	// Cleanly close down the Discord session.
 	dg.Close()
-}
-
-func initDb() (*sql.DB, error) {
-	DB_HOST := os.Getenv("DB_HOST")
-	DB_PORT := os.Getenv("DB_PORT")
-	DB_USER := os.Getenv("DB_USER")
-	DB_PASSWORD := os.Getenv("DB_PASSWORD")
-
-	dbinfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
-	log.Printf("%v", dbinfo)
-	return sql.Open("postgres", dbinfo)
 }
 
 // This function will be called (due to AddHandler above) every time a new
@@ -88,25 +73,25 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	if strings.HasPrefix(m.Content, "!echo ") {
-		name := strings.TrimSpace(strings.TrimPrefix(m.Content, "!echo "))
-		log.Printf("Request: %v", name)
-
-		log.Printf("Response: %v", name)
-
-		// Send
-		s.ChannelMessageSend(m.ChannelID, name)
-	} else if m.Content == "!characters" {
-		fmt.Println("# Querying")
-		rows, err := db.Query("SELECT * FROM character")
-		checkErr(err)
-
-		for rows.Next() {
-			var name string
-			var experience int
-			err = rows.Scan(&name, &experience)
-			checkErr(err)
-			fmt.Printf("%v | %v \n", name, experience)
+	if m.Content == "!characters" {
+		log.Println("[Request] List characters")
+		characters, err := fetchCharacters()
+		if err != nil {
+			log.Printf("[Response] DB is unavailable")
+			s.ChannelMessageSend(m.ChannelID, "DB is unavailable")
+		} else {
+			log.Printf("[Response] %v", characters)
+			s.ChannelMessageSend(m.ChannelID, characters)
+		}
+	} else if m.Content == "!join_adventure" {
+		log.Println("[Request] Join adventure")
+		err := createCharacter(m.Author.Username)
+		if err != nil {
+			log.Printf("[Response] %v", err)
+			s.ChannelMessageSend(m.ChannelID, "Can't create character")
+		} else {
+			log.Printf("[Response] %v joined the adventure!", m.Author.Username)
+			s.ChannelMessageSend(m.ChannelID, m.Author.Username+" joined the adventure!")
 		}
 	}
 }

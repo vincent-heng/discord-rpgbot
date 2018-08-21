@@ -23,6 +23,5 @@ services:
             - db
           environment:
             DB_HOST: db
-            DB_PORT: 8080
             DB_USER: postgres
             DB_PASSWORD: p4ssword_
