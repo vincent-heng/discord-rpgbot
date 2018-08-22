@@ -33,28 +33,32 @@ func createCharacter(name string) error {
 	defer tx.Rollback()
 	stmt, err := tx.Prepare("SELECT COUNT(name) FROM character where name ~* $1")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer stmt.Close() // danger!
+	defer stmt.Close()
 	rows, err := stmt.Query(name)
-	rows.Next()
-	var found int
-	rows.Scan(&found)
-	if found > 0 {
-		err = tx.Commit()
-		return errors.New("Character already exists")
+	for rows.Next() {
+		var found int
+		rows.Scan(&found)
+		if found > 0 {
+			err = tx.Commit()
+			return errors.New("Character already exists")
+		}
 	}
 
-	stmt, err = tx.Prepare("INSERT character(name, experience) VALUES($1, 0)")
+	stmt, err = tx.Prepare("INSERT INTO character(name, experience) VALUES($1, 0)")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer stmt.Close() // danger!
-	stmt.Exec(name)
+	_, err = stmt.Exec(name)
+	if err != nil {
+		return err
+	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	return nil

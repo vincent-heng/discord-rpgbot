@@ -84,7 +84,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, characters)
 		}
 	} else if m.Content == "!join_adventure" {
-		log.Println("[Request] Join adventure")
+		log.Printf("[Request] Join adventure: %v", m.Author.Username)
 		err := createCharacter(m.Author.Username)
 		if err != nil {
 			log.Printf("[Response] %v", err)
