@@ -28,4 +28,4 @@ docker-compose exec -it rpgbot_db_1 psql -U postgres
         service.go : bot behaviour functions
         utils.go : utilities functions
         config.json : configuration parameters. Copy it from config-sample.json
-        ```
+```
