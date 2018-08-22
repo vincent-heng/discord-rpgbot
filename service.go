@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 )
 
@@ -20,7 +22,7 @@ func fetchCharacters() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		characters += name + " (" + strconv.Itoa(experience) + ")"
+		characters += name + " (" + strconv.Itoa(experience) + ") "
 	}
 	return characters, nil
 }
@@ -57,6 +59,29 @@ func createCharacter(name string) error {
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setAdventureChannel(channelID string) error {
+	fileName := "current_channel.txt"
+	if !fileExists(fileName) {
+		file, err := os.Create(fileName)
+		if err != nil {
+			return err
+		}
+		file.Close()
+	} else {
+		err := os.Truncate(fileName, 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := ioutil.WriteFile(fileName, []byte(channelID), 0666)
 	if err != nil {
 		return err
 	}

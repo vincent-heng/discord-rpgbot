@@ -1,16 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 )
 
 // Configuration filled from configuration file
 type Configuration struct {
 	DiscordBotKey string
+	GameMaster    string
 }
 
 func initDb() (*sql.DB, error) {
@@ -20,7 +21,6 @@ func initDb() (*sql.DB, error) {
 
 	dbinfo := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 		DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
-	log.Printf("%v", dbinfo)
 	return sql.Open("postgres", dbinfo)
 }
 
@@ -36,4 +36,39 @@ func loadConfiguration(configurationFile string) (Configuration, error) {
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&configuration)
 	return configuration, err
+}
+
+func fileExists(fileName string) bool {
+	_, err := os.Stat(fileName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
+}
+
+func getChannelId() (string, error) {
+	return readFile("current_channel.txt")
+}
+
+func readFile(fileName string) (string, error) {
+	file, err := os.Open(fileName)
+	if err != nil {
+		return "", nil
+	}
+	scanner := bufio.NewScanner(file)
+
+	success := scanner.Scan()
+	if success == false {
+		// False on error or EOF. Check error
+		err = scanner.Err()
+		if err == nil {
+			return "", nil
+		} else {
+			return "", err
+		}
+	}
+
+	return scanner.Text(), nil
 }
