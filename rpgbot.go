@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -125,5 +126,30 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		log.Printf("[Response GM] %v", content)
 		s.ChannelMessageSend(channelId, content)
+	} else if strings.HasPrefix(m.Content, "!spawn ") {
+		content := strings.TrimSpace(strings.TrimPrefix(m.Content, "!spawn "))
+		log.Printf("[Request GM] Spawn: %v", content)
+		params := strings.Split(content, "_")
+		if len(params) < 3 {
+			log.Println("[Response GM] Bad arguments. Syntax: Name of the mob_HP_XP")
+			s.ChannelMessageSend(m.ChannelID, "Bad arguments. Syntax: Name of the mob_HP_XP")
+			return
+		}
+		healthPoints, err := strconv.Atoi(params[1])
+		if err != nil {
+			log.Printf("[Response GM] HP should be an integer")
+			s.ChannelMessageSend(m.ChannelID, "HP should be an integer")
+		}
+		experience, err := strconv.Atoi(params[2])
+		if err != nil {
+			log.Printf("[Response GM] HP should be an integer")
+			s.ChannelMessageSend(m.ChannelID, "HP should be an integer")
+		}
+		err = spawnMonster(params[0], healthPoints, experience)
+		if err != nil {
+			log.Printf("[Response GM] Error spawning monster: %v", err)
+			s.ChannelMessageSend(m.ChannelID, "Error spawning monster")
+		}
+		s.ChannelMessageSend(m.ChannelID, "Monster spawned")
 	}
 }

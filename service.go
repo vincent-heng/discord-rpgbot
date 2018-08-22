@@ -88,3 +88,28 @@ func setAdventureChannel(channelID string) error {
 
 	return nil
 }
+
+func spawnMonster(monsterName string, healthPoints int, experience int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare("INSERT INTO monster_queue(monster_name, current_hp, max_hp, experience) VALUES ($1, $2, $2, $3)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(monsterName, healthPoints, experience)
+
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
