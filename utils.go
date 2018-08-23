@@ -75,7 +75,7 @@ func readFile(fileName string) (string, error) {
 }
 
 func characterToString(characterInfo character) string {
-	characterString := characterInfo.name + " (" + characterInfo.class + ") - " + strconv.Itoa(characterInfo.current_hp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
+	characterString := characterInfo.name + " (" + characterInfo.class + ") - " + strconv.Itoa(characterInfo.currentHp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
 	characterString = characterString + "Endurance : " + strconv.Itoa(characterInfo.stamina) + " / 100\n"
 	characterString = characterString + "Niveau " + strconv.Itoa(characterInfo.level) + " (" + strconv.Itoa(characterInfo.experience) + " XP)\n"
 	characterString = characterString + "Force : " + strconv.Itoa(characterInfo.strength) + "\n"
@@ -92,6 +92,10 @@ func characterToString(characterInfo character) string {
 	}
 
 	return characterString
+}
+
+func monsterToString(monsterInfo monster) string {
+	return monsterInfo.monsterName + strconv.Itoa(monsterInfo.currentHp) + " / " + strconv.Itoa(10+monsterInfo.currentHp+monsterInfo.constitution) + " HP\n"
 }
 
 func getMaxHP(characterInfo character) int {

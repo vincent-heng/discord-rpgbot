@@ -3,20 +3,17 @@ volumes:
         postgres-data:
 services:
         db:
-                image: postgres:alpine
-                restart: always
-                volumes:
-                  - ./postgres-data:/var/lib/postgresql/data
-                environment:
-                  POSTGRES_PASSWORD: p4ssword_
-        adminer:
-                image: adminer
-                restart: always
-                ports:
-                        - 8080:8080
+          image: postgres:alpine
+          container_name: "db"
+          restart: always
+          volumes:
+            - postgres-data:/var/lib/postgresql/data
+          environment:
+            POSTGRES_PASSWORD: p4ssword_
         rpgbot:
           build: .
           container_name: "rpgbot"
+          restart: always
           volumes:
             - ./config.json:/config.json
           links:

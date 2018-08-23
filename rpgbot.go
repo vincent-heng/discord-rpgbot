@@ -105,9 +105,24 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, "Vous devez d'abord rejoindre l'aventure en tapant !join_adventure")
 			return
 		}
-
 		log.Printf("[Response] %v", characterInfo)
 		s.ChannelMessageSend(m.ChannelID, characterInfo)
+	} else if m.Content == "!watch" {
+		log.Println("[Request] Current monster info")
+		monsterInfo, err := fetchMonsterInfo()
+		if err != nil {
+			log.Printf("[Response] Error fetching monster info: %v", err)
+			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer les informations du monstre actuel.")
+			return
+		}
+		if monsterInfo == "" {
+			log.Printf("[Response] Il n'y a plus de monstre... pour l'instant !")
+			s.ChannelMessageSend(m.ChannelID, "Vous devez d'abord rejoindre l'aventure en tapant !join_adventure")
+			return
+		}
+
+		log.Printf("[Response] %v", monsterInfo)
+		s.ChannelMessageSend(m.ChannelID, monsterInfo)
 
 	}
 

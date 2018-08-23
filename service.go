@@ -46,7 +46,7 @@ func fetchCharacterInfo(name string) (string, error) {
 	found := false
 	for rows.Next() {
 		found = true
-		rows.Scan(&characterInfo.name, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.current_hp, &characterInfo.stamina)
+		rows.Scan(&characterInfo.name, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.currentHp, &characterInfo.stamina)
 	}
 
 	if !found {
@@ -54,6 +54,27 @@ func fetchCharacterInfo(name string) (string, error) {
 	}
 
 	return characterToString(characterInfo), nil
+}
+
+func fetchMonsterInfo() (string, error) {
+	rows, err := db.Query("SELECT monster_name, current_hp, constitution FROM monster_queue")
+	if err != nil {
+		return "", err
+	}
+
+	monsterInfo := monster{}
+
+	found := false
+	for rows.Next() {
+		found = true
+		rows.Scan(&monsterInfo.monsterName, &monsterInfo.currentHp, &monsterInfo.constitution)
+	}
+
+	if !found {
+		return "", nil
+	}
+
+	return monsterToString(monsterInfo), nil
 }
 
 func createCharacter(name string) error {

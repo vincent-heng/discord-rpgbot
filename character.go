@@ -10,6 +10,6 @@ type character struct {
 	wisdom       int
 	constitution int
 	skillPoints  int
-	current_hp   int
+	currentHp    int
 	stamina      int
 }
