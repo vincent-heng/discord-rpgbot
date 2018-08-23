@@ -116,8 +116,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			return
 		}
 		if monsterInfo == "" {
-			log.Printf("[Response] Il n'y a plus de monstre... pour l'instant !")
-			s.ChannelMessageSend(m.ChannelID, "Vous devez d'abord rejoindre l'aventure en tapant !join_adventure")
+			log.Printf("[Response] No monster left")
+			s.ChannelMessageSend(m.ChannelID, "Il n'y a plus de monstre... pour l'instant !")
 			return
 		}
 

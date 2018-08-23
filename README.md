@@ -16,7 +16,7 @@ docker-compose up
 
 You can run psql commands on the psql shell
 ```
-docker-compose exec -it rpgbot_db_1 psql -U postgres
+docker exec -it rpgbot_db_1 psql -U postgres
 ```
 
 
