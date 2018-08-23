@@ -77,7 +77,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		characters, err := fetchCharacters()
 		if err != nil {
 			log.Printf("[Response] DB is unavailable")
-			s.ChannelMessageSend(m.ChannelID, "DB is unavailable")
+			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer la liste.")
 		} else {
 			log.Printf("[Response] %v", characters)
 			s.ChannelMessageSend(m.ChannelID, characters)
@@ -87,11 +87,28 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		err := createCharacter(m.Author.Username)
 		if err != nil {
 			log.Printf("[Response] %v", err)
-			s.ChannelMessageSend(m.ChannelID, "Can't create character")
+			s.ChannelMessageSend(m.ChannelID, "Impossible de créer le personnage...")
 		} else {
 			log.Printf("[Response] %v joined the adventure!", m.Author.Username)
-			s.ChannelMessageSend(m.ChannelID, m.Author.Username+" joined the adventure!")
+			s.ChannelMessageSend(m.ChannelID, m.Author.Username+" a rejoint l'aventure !")
 		}
+	} else if m.Content == "!character" {
+		log.Printf("[Request] Character info: %v", m.Author.Username)
+		characterInfo, err := fetchCharacterInfo(m.Author.Username)
+		if err != nil {
+			log.Printf("[Response] Error fetching character info: %v", err)
+			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer les informations du personnage.")
+			return
+		}
+		if characterInfo == "" {
+			log.Printf("[Response] Character doesn't exist")
+			s.ChannelMessageSend(m.ChannelID, "Vous devez d'abord rejoindre l'aventure en tapant !join_adventure")
+			return
+		}
+
+		log.Printf("[Response] %v", characterInfo)
+		s.ChannelMessageSend(m.ChannelID, characterInfo)
+
 	}
 
 	// GM commands
