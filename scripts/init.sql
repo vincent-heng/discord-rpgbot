@@ -10,7 +10,8 @@ CREATE TABLE "character" (
     "wisdom" integer DEFAULT '1' NOT NULL,
     "constitution" integer DEFAULT '1' NOT NULL,
     "skill_points" integer DEFAULT '0' NOT NULL,
-    "current_hp" integer DEFAULT '1' NOT NULL
+    "current_hp" integer DEFAULT '1' NOT NULL,
+    "stamina" integer  DEFAULT '100' NOT NULL
 ) WITH (oids = false);
 
 CREATE TABLE "monster_queue" (

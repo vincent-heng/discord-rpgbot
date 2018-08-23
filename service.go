@@ -34,7 +34,7 @@ func fetchCharacterInfo(name string) (string, error) {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("SELECT name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp FROM character WHERE name ~* $1")
+	stmt, err := tx.Prepare("SELECT name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina FROM character WHERE name ~* $1")
 	if err != nil {
 		return "", err
 	}
@@ -46,7 +46,7 @@ func fetchCharacterInfo(name string) (string, error) {
 	found := false
 	for rows.Next() {
 		found = true
-		rows.Scan(&characterInfo.name, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.current_hp)
+		rows.Scan(&characterInfo.name, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.current_hp, &characterInfo.stamina)
 	}
 
 	if !found {
@@ -54,29 +54,6 @@ func fetchCharacterInfo(name string) (string, error) {
 	}
 
 	return characterToString(characterInfo), nil
-}
-
-func characterToString(characterInfo character) string {
-	characterString := characterInfo.name + " (" + characterInfo.class + ") - " + strconv.Itoa(characterInfo.current_hp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
-	characterString = characterString + "Niveau " + strconv.Itoa(characterInfo.level) + " (" + strconv.Itoa(characterInfo.experience) + " XP)\n"
-	characterString = characterString + "Force : " + strconv.Itoa(characterInfo.strength) + "\n"
-	characterString = characterString + "Agilité : " + strconv.Itoa(characterInfo.agility) + "\n"
-	characterString = characterString + "Sagesse : " + strconv.Itoa(characterInfo.wisdom) + "\n"
-	characterString = characterString + "Constitution : " + strconv.Itoa(characterInfo.constitution) + "\n"
-
-	if characterInfo.skillPoints > 0 {
-		plural := ""
-		if characterInfo.skillPoints > 1 {
-			plural = "s"
-		}
-		characterString = characterString + "\nIl vous reste " + strconv.Itoa(characterInfo.skillPoints) + " point" + plural + " à répartir.\n"
-	}
-
-	return characterString
-}
-
-func getMaxHP(characterInfo character) int {
-	return 10 + characterInfo.constitution + characterInfo.level
 }
 
 func createCharacter(name string) error {
@@ -100,12 +77,12 @@ func createCharacter(name string) error {
 		}
 	}
 
-	stmt, err = tx.Prepare("INSERT INTO character(name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)")
+	stmt, err = tx.Prepare("INSERT INTO character(name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(name, "Combattant", 0, 1, 1, 1, 1, 1, 5, 12)
+	_, err = stmt.Exec(name, "Combattant", 0, 1, 1, 1, 1, 1, 5, 12, 100)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // Configuration filled from configuration file
@@ -71,4 +72,28 @@ func readFile(fileName string) (string, error) {
 	}
 
 	return scanner.Text(), nil
+}
+
+func characterToString(characterInfo character) string {
+	characterString := characterInfo.name + " (" + characterInfo.class + ") - " + strconv.Itoa(characterInfo.current_hp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
+	characterString = characterString + "Endurance : " + strconv.Itoa(characterInfo.stamina) + " / 100\n"
+	characterString = characterString + "Niveau " + strconv.Itoa(characterInfo.level) + " (" + strconv.Itoa(characterInfo.experience) + " XP)\n"
+	characterString = characterString + "Force : " + strconv.Itoa(characterInfo.strength) + "\n"
+	characterString = characterString + "Agilité : " + strconv.Itoa(characterInfo.agility) + "\n"
+	characterString = characterString + "Sagesse : " + strconv.Itoa(characterInfo.wisdom) + "\n"
+	characterString = characterString + "Constitution : " + strconv.Itoa(characterInfo.constitution) + "\n"
+
+	if characterInfo.skillPoints > 0 {
+		plural := ""
+		if characterInfo.skillPoints > 1 {
+			plural = "s"
+		}
+		characterString = characterString + "\nIl vous reste " + strconv.Itoa(characterInfo.skillPoints) + " point" + plural + " à répartir.\n"
+	}
+
+	return characterString
+}
+
+func getMaxHP(characterInfo character) int {
+	return 10 + characterInfo.constitution + characterInfo.level
 }

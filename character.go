@@ -11,4 +11,5 @@ type character struct {
 	constitution int
 	skillPoints  int
 	current_hp   int
+	stamina      int
 }
