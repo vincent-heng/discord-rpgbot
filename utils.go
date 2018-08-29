@@ -95,9 +95,29 @@ func characterToString(characterInfo character) string {
 }
 
 func monsterToString(monsterInfo monster) string {
-	return monsterInfo.monsterName + strconv.Itoa(monsterInfo.currentHp) + " / " + strconv.Itoa(10+monsterInfo.currentHp+monsterInfo.constitution) + " HP\n"
+	return monsterInfo.monsterName + " - " + strconv.Itoa(monsterInfo.currentHp) + " / " + strconv.Itoa(getMaxHPMonster(monsterInfo)) + " HP\n"
 }
 
 func getMaxHP(characterInfo character) int {
 	return 10 + characterInfo.constitution + characterInfo.level
+}
+
+func getMaxHPMonster(monsterInfo monster) int {
+	return 10 + monsterInfo.constitution
+}
+
+func getDefaultCharacter() character {
+	characterToCreate := character{}
+	characterToCreate.name = "Aventurier"
+	characterToCreate.class = "Combattant"
+	characterToCreate.experience = 0
+	characterToCreate.level = 1
+	characterToCreate.strength = 1
+	characterToCreate.agility = 1
+	characterToCreate.wisdom = 1
+	characterToCreate.constitution = 1
+	characterToCreate.skillPoints = 5
+	characterToCreate.currentHp = getMaxHP(characterToCreate)
+	characterToCreate.stamina = 100
+	return characterToCreate
 }

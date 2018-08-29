@@ -139,7 +139,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			return
 		}
 		log.Printf("[Response GM] Adventure set on channel: %v", m.ChannelID)
-		s.ChannelMessageSend(m.ChannelID, "The adventure starts here")
+		s.ChannelMessageSend(m.ChannelID, "L'aventure commence ici.")
 	}
 
 	if strings.HasPrefix(m.Content, "!shout ") {
@@ -162,22 +162,47 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		content := strings.TrimSpace(strings.TrimPrefix(m.Content, "!spawn "))
 		log.Printf("[Request GM] Spawn: %v", content)
 		params := strings.Split(content, "_")
-		if len(params) < 3 {
-			log.Println("[Response GM] Bad arguments. Syntax: Name of the mob_HP_XP")
-			s.ChannelMessageSend(m.ChannelID, "Bad arguments. Syntax: Name of the mob_HP_XP")
+		if len(params) < 6 {
+			log.Println("[Response GM] Bad arguments. Syntax: Name of the mob_XP_str_agi_wis_con")
+			s.ChannelMessageSend(m.ChannelID, "Bad arguments. Syntax: Name of the mob_XP_str_agi_wis_con")
 			return
 		}
-		healthPoints, err := strconv.Atoi(params[1])
+		experience, err := strconv.Atoi(params[1])
 		if err != nil {
-			log.Printf("[Response GM] HP should be an integer")
-			s.ChannelMessageSend(m.ChannelID, "HP should be an integer")
+			log.Printf("[Response GM] XP should be an integer")
+			s.ChannelMessageSend(m.ChannelID, "XP should be an integer")
 		}
-		experience, err := strconv.Atoi(params[2])
+		strength, err := strconv.Atoi(params[2])
 		if err != nil {
-			log.Printf("[Response GM] HP should be an integer")
-			s.ChannelMessageSend(m.ChannelID, "HP should be an integer")
+			log.Printf("[Response GM] STR should be an integer")
+			s.ChannelMessageSend(m.ChannelID, "STR should be an integer")
 		}
-		err = spawnMonster(params[0], healthPoints, experience)
+		agility, err := strconv.Atoi(params[3])
+		if err != nil {
+			log.Printf("[Response GM] AGI should be an integer")
+			s.ChannelMessageSend(m.ChannelID, "AGI should be an integer")
+		}
+		wisdom, err := strconv.Atoi(params[4])
+		if err != nil {
+			log.Printf("[Response GM] WIS should be an integer")
+			s.ChannelMessageSend(m.ChannelID, "WIS should be an integer")
+		}
+		constitution, err := strconv.Atoi(params[5])
+		if err != nil {
+			log.Printf("[Response GM] CON should be an integer")
+			s.ChannelMessageSend(m.ChannelID, "CON should be an integer")
+		}
+
+		monsterToSpawn := monster{}
+		monsterToSpawn.monsterName = params[0]
+		monsterToSpawn.experience = experience
+		monsterToSpawn.strength = strength
+		monsterToSpawn.agility = agility
+		monsterToSpawn.wisdom = wisdom
+		monsterToSpawn.constitution = constitution
+		monsterToSpawn.currentHp = getMaxHPMonster(monsterToSpawn)
+
+		err = spawnMonster(monsterToSpawn)
 		if err != nil {
 			log.Printf("[Response GM] Error spawning monster: %v", err)
 			s.ChannelMessageSend(m.ChannelID, "Error spawning monster")

@@ -98,12 +98,15 @@ func createCharacter(name string) error {
 		}
 	}
 
+	characterToCreate := getDefaultCharacter()
+	characterToCreate.name = name
+
 	stmt, err = tx.Prepare("INSERT INTO character(name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(name, "Combattant", 0, 1, 1, 1, 1, 1, 5, 12, 100)
+	_, err = stmt.Exec(characterToCreate.name, characterToCreate.class, characterToCreate.experience, characterToCreate.level, characterToCreate.strength, characterToCreate.agility, characterToCreate.wisdom, characterToCreate.constitution, characterToCreate.skillPoints, characterToCreate.currentHp, characterToCreate.stamina)
 	if err != nil {
 		return err
 	}
@@ -139,18 +142,19 @@ func setAdventureChannel(channelID string) error {
 	return nil
 }
 
-func spawnMonster(monsterName string, healthPoints int, experience int) error {
+func spawnMonster(monsterToSpawn monster) error {
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer tx.Rollback()
-	stmt, err := tx.Prepare("INSERT INTO monster_queue(monster_name, current_hp, max_hp, experience) VALUES ($1, $2, $2, $3)")
+
+	stmt, err := tx.Prepare("INSERT INTO monster_queue(monster_name, experience, strength, agility, wisdom, constitution, current_hp) VALUES ($1, $2, $3, $4, $5, $6, $7)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(monsterName, healthPoints, experience)
+	_, err = stmt.Exec(monsterToSpawn.monsterName, monsterToSpawn.experience, monsterToSpawn.strength, monsterToSpawn.agility, monsterToSpawn.wisdom, monsterToSpawn.constitution, monsterToSpawn.currentHp)
 
 	if err != nil {
 		return err
