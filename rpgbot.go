@@ -100,13 +100,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer les informations du personnage.")
 			return
 		}
-		if characterInfo == "" {
+		if characterInfo.name == "" {
 			log.Printf("[Response] Character doesn't exist")
 			s.ChannelMessageSend(m.ChannelID, "Vous devez d'abord rejoindre l'aventure en tapant !join_adventure")
 			return
 		}
-		log.Printf("[Response] %v", characterInfo)
-		s.ChannelMessageSend(m.ChannelID, characterInfo)
+		characterInfoString := characterToString(characterInfo)
+		log.Printf("[Response] %v", characterInfoString)
+		s.ChannelMessageSend(m.ChannelID, characterInfoString)
 	} else if m.Content == "!watch" {
 		log.Println("[Request] Current monster info")
 		monsterInfo, err := fetchMonsterInfo()
@@ -115,15 +116,26 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer les informations du monstre actuel.")
 			return
 		}
-		if monsterInfo == "" {
+		if monsterInfo.monsterName == "" {
 			log.Printf("[Response] No monster left")
 			s.ChannelMessageSend(m.ChannelID, "Il n'y a plus de monstre... pour l'instant !")
 			return
 		}
+		monsterInfoString := monsterToString(monsterInfo)
 
-		log.Printf("[Response] %v", monsterInfo)
-		s.ChannelMessageSend(m.ChannelID, monsterInfo)
+		log.Printf("[Response] %v", monsterInfoString)
+		s.ChannelMessageSend(m.ChannelID, monsterInfoString)
+	} else if m.Content == "!hit" {
+		log.Printf("[Request] Attack from %v", m.Author.Username)
+		report, err := attackCurrentMonster(m.Author.Username)
+		if err != nil { // Character exists? Monster exists? Enough Stamina?
+			log.Printf("[Response] Error Attacking monster: %v", err)
+			s.ChannelMessageSend(m.ChannelID, "Impossible d'attaquer.")
+			return
+		}
 
+		log.Printf("[Response] %v Attacked", m.Author.Username)
+		s.ChannelMessageSend(m.ChannelID, report)
 	}
 
 	// GM commands

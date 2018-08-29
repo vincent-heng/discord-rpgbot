@@ -4,11 +4,13 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 )
 
 func fetchCharacters() (string, error) {
+	// TODO update current hpn stamina and last update
 	rows, err := db.Query("SELECT name, level FROM character")
 	if err != nil {
 		return "", err
@@ -27,7 +29,7 @@ func fetchCharacters() (string, error) {
 	return characters, nil
 }
 
-func fetchCharacterInfo(name string) (string, error) {
+func fetchCharacterInfo(name string) (character, error) {
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
@@ -36,7 +38,7 @@ func fetchCharacterInfo(name string) (string, error) {
 
 	stmt, err := tx.Prepare("SELECT name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina FROM character WHERE name ~* $1")
 	if err != nil {
-		return "", err
+		return character{}, err
 	}
 	defer stmt.Close()
 
@@ -50,16 +52,16 @@ func fetchCharacterInfo(name string) (string, error) {
 	}
 
 	if !found {
-		return "", nil
+		return character{}, nil
 	}
 
-	return characterToString(characterInfo), nil
+	return characterInfo, nil
 }
 
-func fetchMonsterInfo() (string, error) {
-	rows, err := db.Query("SELECT monster_name, current_hp, constitution FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
+func fetchMonsterInfo() (monster, error) {
+	rows, err := db.Query("SELECT monster_queue_id, monster_name, current_hp, agility, constitution FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
 	if err != nil {
-		return "", err
+		return monster{}, err
 	}
 
 	monsterInfo := monster{}
@@ -67,14 +69,14 @@ func fetchMonsterInfo() (string, error) {
 	found := false
 	for rows.Next() {
 		found = true
-		rows.Scan(&monsterInfo.monsterName, &monsterInfo.currentHp, &monsterInfo.constitution)
+		rows.Scan(&monsterInfo.monsterId, &monsterInfo.monsterName, &monsterInfo.currentHp, &monsterInfo.agility, &monsterInfo.constitution)
 	}
 
 	if !found {
-		return "", nil
+		return monster{}, nil
 	}
 
-	return monsterToString(monsterInfo), nil
+	return monsterInfo, nil
 }
 
 func createCharacter(name string) error {
@@ -166,4 +168,60 @@ func spawnMonster(monsterToSpawn monster) error {
 	}
 
 	return nil
+}
+
+func attackCurrentMonster(characterName string) (string, error) {
+	//Monster exists? Enough Stamina?
+	// Get Character
+	attacker, err := fetchCharacterInfo(characterName)
+	if err != nil {
+		return "", err
+	}
+	if attacker.name == "" {
+		return "", errors.New("Character not found")
+	}
+
+	// TODO Check has enough stamina
+
+	// Get Monster
+	monsterTarget, err := fetchMonsterInfo()
+	if err != nil {
+		return "", err
+	}
+	if monsterTarget.monsterName == "" {
+		return "", errors.New("Monster not found")
+	}
+
+	agilityBonus := rand.Intn(attacker.agility + 1)
+	hitPoints := attacker.strength + agilityBonus
+	damageReduction := monsterTarget.agility
+	result := hitPoints - damageReduction
+	if result <= 0 { // At least 1 damage
+		result = 1
+	}
+	monsterTarget.currentHp = monsterTarget.currentHp - result
+
+	// TODO Use stamina
+	// TODO Check if monsterTarget is dead
+	// TODO 	Gain XP and Check if level up
+
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+	// Update monster's current hp
+	stmt, err := tx.Prepare("UPDATE monster_queue SET current_hp = $1 where monster_queue_id = $2")
+	if err != nil {
+		return "", err
+	}
+	defer stmt.Close()
+
+	err = tx.Commit()
+	if err != nil {
+		return "", err
+	}
+
+	return characterName + " inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts au monstre.", nil
+
 }
