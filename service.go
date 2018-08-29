@@ -217,6 +217,8 @@ func attackCurrentMonster(characterName string) (string, error) {
 	}
 	defer stmt.Close()
 
+	_, err = stmt.Exec(monsterTarget.currentHp, monsterTarget.monsterId)
+
 	err = tx.Commit()
 	if err != nil {
 		return "", err
