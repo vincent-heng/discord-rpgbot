@@ -57,7 +57,7 @@ func fetchCharacterInfo(name string) (string, error) {
 }
 
 func fetchMonsterInfo() (string, error) {
-	rows, err := db.Query("SELECT monster_name, current_hp, constitution FROM monster_queue")
+	rows, err := db.Query("SELECT monster_name, current_hp, constitution FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
 	if err != nil {
 		return "", err
 	}
