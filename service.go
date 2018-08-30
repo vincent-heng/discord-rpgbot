@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"io/ioutil"
 	"log"
@@ -10,7 +11,7 @@ import (
 )
 
 func fetchCharacters() (string, error) {
-	// TODO update current hpn stamina and last update
+	// TODO update current hp, stamina and last update
 	rows, err := db.Query("SELECT name, level FROM character")
 	if err != nil {
 		return "", err
@@ -29,13 +30,16 @@ func fetchCharacters() (string, error) {
 	return characters, nil
 }
 
-func fetchCharacterInfo(name string) (character, error) {
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatal(err)
+func fetchCharacterInfo(tx *sql.Tx, name string) (character, error) {
+	existingTransaction := tx != nil
+	if !existingTransaction {
+		var err error
+		tx, err = db.Begin()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer tx.Rollback()
 	}
-	defer tx.Rollback()
-
 	stmt, err := tx.Prepare("SELECT name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina FROM character WHERE name ~* $1")
 	if err != nil {
 		return character{}, err
@@ -51,6 +55,13 @@ func fetchCharacterInfo(name string) (character, error) {
 		rows.Scan(&characterInfo.name, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.currentHp, &characterInfo.stamina)
 	}
 
+	if !existingTransaction {
+		err = tx.Commit() // COMMIT TRANSACTION
+		if err != nil {
+			return character{}, err
+		}
+	}
+
 	if !found {
 		return character{}, nil
 	}
@@ -58,18 +69,37 @@ func fetchCharacterInfo(name string) (character, error) {
 	return characterInfo, nil
 }
 
-func fetchMonsterInfo() (monster, error) {
-	rows, err := db.Query("SELECT monster_queue_id, monster_name, current_hp, agility, constitution FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
+func fetchMonsterInfo(tx *sql.Tx) (monster, error) {
+	existingTransaction := tx != nil
+	if !existingTransaction {
+		var err error
+		tx, err = db.Begin()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer tx.Rollback()
+	}
+	log.Printf("%v", tx == nil)
+	stmt, err := db.Prepare("SELECT monster_queue_id, monster_name, current_hp, agility, constitution FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
 	if err != nil {
 		return monster{}, err
 	}
+	defer stmt.Close()
 
 	monsterInfo := monster{}
+	rows, err := stmt.Query()
 
 	found := false
 	for rows.Next() {
 		found = true
 		rows.Scan(&monsterInfo.monsterId, &monsterInfo.monsterName, &monsterInfo.currentHp, &monsterInfo.agility, &monsterInfo.constitution)
+	}
+
+	if !existingTransaction {
+		err = tx.Commit() // COMMIT TRANSACTION
+		if err != nil {
+			return monster{}, err
+		}
 	}
 
 	if !found {
@@ -171,9 +201,15 @@ func spawnMonster(monsterToSpawn monster) error {
 }
 
 func attackCurrentMonster(characterName string) (string, error) {
-	//Monster exists? Enough Stamina?
+
+	tx, err := db.Begin() // BEGIN TRANSACTION
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+
 	// Get Character
-	attacker, err := fetchCharacterInfo(characterName)
+	attacker, err := fetchCharacterInfo(tx, characterName)
 	if err != nil {
 		return "", err
 	}
@@ -184,7 +220,7 @@ func attackCurrentMonster(characterName string) (string, error) {
 	// TODO Check has enough stamina
 
 	// Get Monster
-	monsterTarget, err := fetchMonsterInfo()
+	monsterTarget, err := fetchMonsterInfo(tx)
 	if err != nil {
 		return "", err
 	}
@@ -205,11 +241,6 @@ func attackCurrentMonster(characterName string) (string, error) {
 	// TODO Check if monsterTarget is dead
 	// TODO 	Gain XP and Check if level up
 
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tx.Rollback()
 	// Update monster's current hp
 	stmt, err := tx.Prepare("UPDATE monster_queue SET current_hp = $1 where monster_queue_id = $2")
 	if err != nil {
@@ -219,11 +250,11 @@ func attackCurrentMonster(characterName string) (string, error) {
 
 	_, err = stmt.Exec(monsterTarget.currentHp, monsterTarget.monsterId)
 
-	err = tx.Commit()
+	err = tx.Commit() // COMMIT TRANSACTION
 	if err != nil {
 		return "", err
 	}
 
-	return characterName + " inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts au monstre.", nil
+	return "**" + characterName + "** inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts à **" + monsterTarget.monsterName + "**.", nil
 
 }

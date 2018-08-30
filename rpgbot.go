@@ -94,7 +94,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	} else if m.Content == "!character" {
 		log.Printf("[Request] Character info: %v", m.Author.Username)
-		characterInfo, err := fetchCharacterInfo(m.Author.Username)
+		characterInfo, err := fetchCharacterInfo(nil, m.Author.Username)
 		if err != nil {
 			log.Printf("[Response] Error fetching character info: %v", err)
 			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer les informations du personnage.")
@@ -110,7 +110,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, characterInfoString)
 	} else if m.Content == "!watch" {
 		log.Println("[Request] Current monster info")
-		monsterInfo, err := fetchMonsterInfo()
+		monsterInfo, err := fetchMonsterInfo(nil)
 		if err != nil {
 			log.Printf("[Response] Error fetching monster info: %v", err)
 			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer les informations du monstre actuel.")
