@@ -72,7 +72,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	if m.Content == "!characters" {
+	content := strings.Split(m.Content, " ")
+	if len(content) < 1 {
+		return
+	}
+
+	switch content[0] {
+	case "!characters":
 		log.Println("[Request] List characters")
 		characters, err := fetchCharacters()
 		if err != nil {
@@ -82,7 +88,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			log.Printf("[Response] %v", characters)
 			s.ChannelMessageSend(m.ChannelID, characters)
 		}
-	} else if m.Content == "!join_adventure" {
+	case "!join_adventure":
 		log.Printf("[Request] Join adventure: %v", m.Author.Username)
 		err := createCharacter(m.Author.Username)
 		if err != nil {
@@ -92,7 +98,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			log.Printf("[Response] %v joined the adventure!", m.Author.Username)
 			s.ChannelMessageSend(m.ChannelID, m.Author.Username+" a rejoint l'aventure !")
 		}
-	} else if m.Content == "!character" {
+	case "!character":
 		log.Printf("[Request] Character info: %v", m.Author.Username)
 		characterInfo, err := fetchCharacterInfo(nil, m.Author.Username)
 		if err != nil {
@@ -108,7 +114,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		characterInfoString := characterToString(characterInfo)
 		log.Printf("[Response] %v", characterInfoString)
 		s.ChannelMessageSend(m.ChannelID, characterInfoString)
-	} else if m.Content == "!watch" {
+	case "!watch":
 		log.Println("[Request] Current monster info")
 		monsterInfo, err := fetchMonsterInfo(nil)
 		if err != nil {
@@ -125,7 +131,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		log.Printf("[Response] %v", monsterInfoString)
 		s.ChannelMessageSend(m.ChannelID, monsterInfoString)
-	} else if m.Content == "!hit" {
+	case "!hit":
 		log.Printf("[Request] Attack from %v", m.Author.Username)
 		report, err := attackCurrentMonster(m.Author.Username)
 		if err != nil { // Character exists? Monster exists? Enough Stamina?
@@ -143,7 +149,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	if m.Content == "!start_adventure" {
+	switch content[0] {
+	case "!start_adventure":
 		log.Printf("[Request GM] Set adventure on channel: %v", m.ChannelID)
 		err := setAdventureChannel(m.ChannelID)
 		if err != nil {
@@ -152,9 +159,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		log.Printf("[Response GM] Adventure set on channel: %v", m.ChannelID)
 		s.ChannelMessageSend(m.ChannelID, "L'aventure commence ici.")
-	}
-
-	if strings.HasPrefix(m.Content, "!shout ") {
+	case "!shout":
 		content := strings.TrimSpace(strings.TrimPrefix(m.Content, "!shout "))
 		log.Printf("[Request GM] Shout: %v", content)
 
@@ -170,7 +175,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		log.Printf("[Response GM] %v", content)
 		s.ChannelMessageSend(channelId, content)
-	} else if strings.HasPrefix(m.Content, "!spawn ") {
+	case "!spawn":
 		content := strings.TrimSpace(strings.TrimPrefix(m.Content, "!spawn "))
 		log.Printf("[Request GM] Spawn: %v", content)
 		params := strings.Split(content, "_")

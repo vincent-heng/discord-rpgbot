@@ -316,7 +316,6 @@ func attackCurrentMonster(characterName string) (string, error) {
 					resultText = resultText + " x" + strconv.Itoa(nbLevelUps)
 				}
 				participant.level = newLevel
-				log.Printf("old skillPoints %v, new skillPoints %v", participant.skillPoints, participant.skillPoints+nbLevelUps*5)
 				participant.skillPoints = participant.skillPoints + nbLevelUps*5
 			}
 			// update character: xp, level, skillPoints
