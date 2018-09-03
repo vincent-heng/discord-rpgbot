@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 )
@@ -120,4 +121,11 @@ func getDefaultCharacter() character {
 	characterToCreate.currentHp = getMaxHP(characterToCreate)
 	characterToCreate.stamina = 100
 	return characterToCreate
+}
+
+func parseLevel(experience int) int {
+	floatExperience := float64(experience)
+	floatLevel := (-1 + math.Sqrt(1+2*floatExperience/25)) / 2
+	roundLevel := int(floatLevel) + 1 // 99 XP -> 0.9 floatLevel -> 1 roundLevel
+	return roundLevel
 }

@@ -69,6 +69,41 @@ func fetchCharacterInfo(tx *sql.Tx, name string) (character, error) {
 	return characterInfo, nil
 }
 
+func fetchBattleParticipants(tx *sql.Tx, monsterQueueId int) ([]character, error) {
+	existingTransaction := tx != nil
+	if !existingTransaction {
+		var err error
+		tx, err = db.Begin()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer tx.Rollback()
+	}
+	stmt, err := tx.Prepare("SELECT DISTINCT name, experience, level, skill_points FROM character INNER JOIN battle_participation ON character.name = battle_participation.character_name WHERE monster_queue_id = $1")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	var participants []character
+
+	rows, err := stmt.Query(monsterQueueId)
+	for rows.Next() {
+		characterInfo := character{}
+		rows.Scan(&characterInfo.name, &characterInfo.experience, &characterInfo.level, &characterInfo.skillPoints)
+		participants = append(participants, characterInfo)
+	}
+
+	if !existingTransaction {
+		err = tx.Commit() // COMMIT TRANSACTION
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return participants, nil
+}
+
 func fetchMonsterInfo(tx *sql.Tx) (monster, error) {
 	existingTransaction := tx != nil
 	if !existingTransaction {
@@ -80,7 +115,7 @@ func fetchMonsterInfo(tx *sql.Tx) (monster, error) {
 		defer tx.Rollback()
 	}
 	log.Printf("%v", tx == nil)
-	stmt, err := db.Prepare("SELECT monster_queue_id, monster_name, current_hp, agility, constitution FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
+	stmt, err := db.Prepare("SELECT monster_queue_id, monster_name, current_hp, agility, constitution, experience FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
 	if err != nil {
 		return monster{}, err
 	}
@@ -92,7 +127,7 @@ func fetchMonsterInfo(tx *sql.Tx) (monster, error) {
 	found := false
 	for rows.Next() {
 		found = true
-		rows.Scan(&monsterInfo.monsterId, &monsterInfo.monsterName, &monsterInfo.currentHp, &monsterInfo.agility, &monsterInfo.constitution)
+		rows.Scan(&monsterInfo.monsterId, &monsterInfo.monsterName, &monsterInfo.currentHp, &monsterInfo.agility, &monsterInfo.constitution, &monsterInfo.experience)
 	}
 
 	if !existingTransaction {
@@ -228,6 +263,7 @@ func attackCurrentMonster(characterName string) (string, error) {
 		return "", errors.New("Monster not found")
 	}
 
+	// Compute fight
 	agilityBonus := rand.Intn(attacker.agility + 1)
 	hitPoints := attacker.strength + agilityBonus
 	damageReduction := monsterTarget.agility
@@ -238,8 +274,6 @@ func attackCurrentMonster(characterName string) (string, error) {
 	monsterTarget.currentHp = monsterTarget.currentHp - result
 
 	// TODO Use stamina
-	// TODO Check if monsterTarget is dead
-	// TODO 	Gain XP and Check if level up
 
 	// Update monster's current hp
 	stmt, err := tx.Prepare("UPDATE monster_queue SET current_hp = $1 where monster_queue_id = $2")
@@ -250,11 +284,60 @@ func attackCurrentMonster(characterName string) (string, error) {
 
 	_, err = stmt.Exec(monsterTarget.currentHp, monsterTarget.monsterId)
 
+	// Add character to battle participation
+	stmt, err = tx.Prepare("INSERT INTO battle_participation(monster_queue_id, character_name) VALUES($1, $2)")
+	if err != nil {
+		return "", err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(monsterTarget.monsterId, attacker.name)
+
+	resultText := "**" + characterName + "** inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts à **" + monsterTarget.monsterName + "**.\n"
+
+	if monsterTarget.currentHp <= 0 { // Target defeated
+		resultText = resultText + "L'adversaire est vaincu ! Le combat rapporte " + strconv.Itoa(monsterTarget.experience) + " points d'expérience partagés entre :\n"
+		// Gain XP for every participants
+		participants, err := fetchBattleParticipants(tx, monsterTarget.monsterId)
+		if err != nil {
+			return "", err
+		}
+
+		sharedExperience := (monsterTarget.experience) / len(participants)
+
+		for _, participant := range participants {
+			resultText = resultText + "- " + participant.name
+			participant.experience = participant.experience + sharedExperience
+			newLevel := parseLevel(participant.experience)
+			if participant.level < newLevel {
+				nbLevelUps := newLevel - participant.level
+				resultText = resultText + ": Gain de niveau ! "
+				if nbLevelUps > 1 {
+					resultText = resultText + " x" + strconv.Itoa(nbLevelUps)
+				}
+				participant.level = newLevel
+				log.Printf("old skillPoints %v, new skillPoints %v", participant.skillPoints, participant.skillPoints+nbLevelUps*5)
+				participant.skillPoints = participant.skillPoints + nbLevelUps*5
+			}
+			// update character: xp, level, skillPoints
+			stmt, err := tx.Prepare("UPDATE character SET experience = $1, level = $2, skill_points = $3 WHERE name = $4")
+			if err != nil {
+				return "", err
+			}
+			defer stmt.Close()
+
+			_, err = stmt.Exec(participant.experience, participant.level, participant.skillPoints, participant.name)
+
+			resultText = resultText + "\n"
+		}
+
+	}
+
 	err = tx.Commit() // COMMIT TRANSACTION
 	if err != nil {
 		return "", err
 	}
 
-	return "**" + characterName + "** inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts à **" + monsterTarget.monsterName + "**.", nil
+	return resultText, nil
 
 }

@@ -24,3 +24,13 @@ CREATE TABLE "monster_queue" (
     "constitution" integer DEFAULT '1' NOT NULL,
     "current_hp" integer DEFAULT '1' NOT NULL
 ) WITH (oids = false);
+CREATE INDEX monster_queue_current_hp
+ON monster_queue (current_hp);
+
+CREATE TABLE "battle_participation" (
+  "battle_participation_id" SERIAL PRIMARY KEY,
+  "monster_queue_id" text,
+  "character_name" text
+) WITH (oids = false);
+CREATE INDEX battle_participation_monster_id
+ON battle_participation (monster_queue_id);
