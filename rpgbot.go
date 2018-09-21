@@ -139,9 +139,16 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, "Impossible d'attaquer.")
 			return
 		}
-
 		log.Printf("[Response] %v Attacked", m.Author.Username)
 		s.ChannelMessageSend(m.ChannelID, report)
+	case "!str":
+		handleUpStats(s, m.ChannelID, "strength", m.Author.Username, m.Content)
+	case "!agi":
+		handleUpStats(s, m.ChannelID, "agility", m.Author.Username, m.Content)
+	case "!wis":
+		handleUpStats(s, m.ChannelID, "wisdom", m.Author.Username, m.Content)
+	case "!con":
+		handleUpStats(s, m.ChannelID, "constitution", m.Author.Username, m.Content)
 	}
 
 	// GM commands
@@ -226,4 +233,32 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		s.ChannelMessageSend(m.ChannelID, "Monster spawned")
 	}
+}
+
+func handleUpStats(s *discordgo.Session, channelID string, stat string, username string, message string) {
+	statTrigram := stat[0:3]
+	log.Printf("[Request] Up %v stats for %v", stat, username)
+	content := strings.TrimSpace(strings.TrimPrefix(message, "!"+statTrigram+" "))
+	amount, err := strconv.Atoi(content)
+	if err != nil {
+		log.Printf("[Response] Illegal argument for upgrading stats: %v", err)
+		s.ChannelMessageSend(channelID, "Mauvaise syntaxe, essayez `!"+statTrigram+" 1`")
+		return
+	}
+
+	if amount <= 0 {
+		log.Printf("[Response] Illegal argument for upgrading stats: negative value")
+		s.ChannelMessageSend(channelID, "Mauvaise syntaxe, essayez un nombre positif :unamused:")
+		return
+	}
+
+	err = upStats(stat, username, amount)
+	if err != nil {
+		log.Printf("[Response] Error upgrading stat: %v", err)
+		s.ChannelMessageSend(channelID, "Répartition impossible.")
+		return
+	}
+
+	log.Printf("[Response] %v successfully upgraded %v stats", stat, username)
+	s.ChannelMessageSend(channelID, "Répartition effectuée !")
 }

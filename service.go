@@ -114,7 +114,6 @@ func fetchMonsterInfo(tx *sql.Tx) (monster, error) {
 		}
 		defer tx.Rollback()
 	}
-	log.Printf("%v", tx == nil)
 	stmt, err := db.Prepare("SELECT monster_queue_id, monster_name, current_hp, agility, constitution, experience FROM monster_queue WHERE current_hp > 0 ORDER BY monster_queue_id LIMIT 1")
 	if err != nil {
 		return monster{}, err
@@ -338,5 +337,56 @@ func attackCurrentMonster(characterName string) (string, error) {
 	}
 
 	return resultText, nil
+}
+
+func upStats(statsToUp string, username string, amount int) error {
+
+	tx, err := db.Begin() // BEGIN TRANSACTION
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	character, err := fetchCharacterInfo(tx, username)
+	if err != nil {
+		return err // character unfetchable
+	}
+
+	if character.name == "" {
+		return errors.New("Character doesn't exist")
+	}
+
+	if amount > character.skillPoints {
+		return errors.New("Not enough skill points")
+	}
+
+	switch statsToUp {
+	case "strength":
+		character.strength = character.strength + amount
+	case "agility":
+		character.agility = character.agility + amount
+	case "wisdom":
+		character.wisdom = character.wisdom + amount
+	case "constitution":
+		character.constitution = character.constitution + amount
+	default:
+		return errors.New("Wrong stat")
+	}
+	character.skillPoints = character.skillPoints - amount
+
+	stmt, err := tx.Prepare("UPDATE character SET strength = $1, agility = $2, wisdom = $3, constitution = $4, skill_points = $5 WHERE name = $6")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(character.strength, character.agility, character.wisdom, character.constitution, character.skillPoints, character.name)
+
+	err = tx.Commit() // COMMIT TRANSACTION
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }
