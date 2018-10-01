@@ -263,7 +263,7 @@ func attackCurrentMonster(characterName string) (string, error) {
 	}
 
 	// Compute fight
-	agilityBonus := rand.Intn(attacker.agility + 1)
+	agilityBonus := rand.Intn(attacker.agility*2 + 1)
 	hitPoints := attacker.strength + agilityBonus
 	damageReduction := monsterTarget.agility
 	result := hitPoints - damageReduction
