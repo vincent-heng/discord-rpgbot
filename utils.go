@@ -13,7 +13,7 @@ import (
 // Configuration filled from configuration file
 type Configuration struct {
 	DiscordBotKey string
-	GameMaster    string
+	GameMaster    int
 }
 
 func initDb() (*sql.DB, error) {
@@ -76,7 +76,7 @@ func readFile(fileName string) (string, error) {
 }
 
 func characterToString(characterInfo character) string {
-	characterString := characterInfo.name + " (" + characterInfo.class + ") - " + strconv.Itoa(characterInfo.currentHp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
+	characterString := discordIdToText(characterInfo.discordId) + " (" + characterInfo.class + ") - " + strconv.Itoa(characterInfo.currentHp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
 	characterString = characterString + "Endurance : " + strconv.Itoa(characterInfo.stamina) + " / 100\n"
 	characterString = characterString + "Niveau " + strconv.Itoa(characterInfo.level) + " (" + strconv.Itoa(characterInfo.experience) + " XP)\n"
 	characterString = characterString + "Force : " + strconv.Itoa(characterInfo.strength) + "\n"
@@ -109,7 +109,6 @@ func getMaxHPMonster(monsterInfo monster) int {
 
 func getDefaultCharacter() character {
 	characterToCreate := character{}
-	characterToCreate.name = "Aventurier"
 	characterToCreate.class = "Combattant"
 	characterToCreate.experience = 0
 	characterToCreate.level = 1
@@ -128,4 +127,8 @@ func parseLevel(experience int) int {
 	floatLevel := (-1 + math.Sqrt(1+2*floatExperience/25)) / 2
 	roundLevel := int(floatLevel) + 1 // 99 XP -> 0.9 floatLevel -> 1 roundLevel
 	return roundLevel
+}
+
+func discordIdToText(userId int) string {
+	return "<@" + strconv.Itoa(userId) + ">"
 }

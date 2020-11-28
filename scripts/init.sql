@@ -1,7 +1,7 @@
 CREATE DATABASE rpg;
 \connect rpg
 CREATE TABLE "character" (
-    "name" text PRIMARY KEY,
+    "discord_id" bigint PRIMARY KEY,
     "class" text NOT NULL,
     "experience" integer DEFAULT '0' NOT NULL,
     "level" integer DEFAULT '1' NOT NULL,
@@ -29,8 +29,8 @@ ON monster_queue (current_hp);
 
 CREATE TABLE "battle_participation" (
   "battle_participation_id" SERIAL PRIMARY KEY,
-  "monster_queue_id" text,
-  "character_name" text
+  "monster_queue_id" integer,
+  "character_discord_id" bigint
 ) WITH (oids = false);
 CREATE INDEX battle_participation_monster_id
 ON battle_participation (monster_queue_id);

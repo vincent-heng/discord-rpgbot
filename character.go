@@ -1,7 +1,7 @@
 package main
 
 type character struct {
-	name         string
+	discordId    int
 	class        string
 	experience   int
 	level        int

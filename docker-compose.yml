@@ -3,9 +3,9 @@ volumes:
         postgres-data:
         current-channel:
 services:
-        db:
+        rpgbot_db:
           image: postgres:alpine
-          container_name: "db"
+          container_name: "rpgbot_db"
           restart: always
           volumes:
             - postgres-data:/var/lib/postgresql/data
@@ -19,8 +19,8 @@ services:
             - ./config.json:/config.json
             - current-channel:/current_channel.txt
           links:
-            - db
+            - rpgbot_db
           environment:
-            DB_HOST: db
+            DB_HOST: rpgbot_db
             DB_USER: postgres
             DB_PASSWORD: p4ssword_

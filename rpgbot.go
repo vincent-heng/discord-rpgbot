@@ -77,6 +77,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	authorId, err := strconv.Atoi(strings.TrimSpace(m.Author.ID))
+	if err != nil {
+		log.Printf("[Response GM] Unexpected error (authorId not an integer)")
+		s.ChannelMessageSend(m.ChannelID, "Erreur inattendue :cry:")
+	}
+
+
 	switch content[0] {
 	case "!characters":
 		log.Println("[Request] List characters")
@@ -89,25 +96,25 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, characters)
 		}
 	case "!join_adventure":
-		log.Printf("[Request] Join adventure: %v", m.Author.Username)
-		err := createCharacter(m.Author.Username)
+		log.Printf("[Request] Join adventure: %v", authorId)
+		err := createCharacter(authorId)
 		if err != nil {
 			log.Printf("[Response] %v", err)
 			s.ChannelMessageSend(m.ChannelID, "Impossible de créer le personnage...")
 		} else {
-			log.Printf("[Response] %v joined the adventure!", m.Author.Username)
-			s.ChannelMessageSend(m.ChannelID, m.Author.Username+" a rejoint l'aventure !")
+			log.Printf("[Response] %v %v joined the adventure!", authorId, m.Author.Username)
+			s.ChannelMessageSend(m.ChannelID, discordIdToText(authorId)+" a rejoint l'aventure !")
 		}
 	case "!character":
-		log.Printf("[Request] Character info: %v", m.Author.Username)
-		characterInfo, err := fetchCharacterInfo(nil, m.Author.Username)
+		log.Printf("[Request] Character info: %v %v", authorId, m.Author.Username)
+		characterInfo, err := fetchCharacterInfo(nil, authorId)
 		if err != nil {
 			log.Printf("[Response] Error fetching character info: %v", err)
 			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer les informations du personnage.")
 			return
 		}
-		if characterInfo.name == "" {
-			log.Printf("[Response] Character doesn't exist")
+		if characterInfo.discordId == 0 {
+			log.Printf("[Response] Character doesn't exist: %v %v", authorId, m.Author.Username)
 			s.ChannelMessageSend(m.ChannelID, "Vous devez d'abord rejoindre l'aventure en tapant !join_adventure")
 			return
 		}
@@ -132,27 +139,27 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		log.Printf("[Response] %v", monsterInfoString)
 		s.ChannelMessageSend(m.ChannelID, monsterInfoString)
 	case "!hit":
-		log.Printf("[Request] Attack from %v", m.Author.Username)
-		report, err := attackCurrentMonster(m.Author.Username)
+		log.Printf("[Request] Attack from %v %v", authorId, m.Author.Username)
+		report, err := attackCurrentMonster(authorId)
 		if err != nil { // Character exists? Monster exists? Enough Stamina?
 			log.Printf("[Response] Error Attacking monster: %v", err)
 			s.ChannelMessageSend(m.ChannelID, "Impossible d'attaquer.")
 			return
 		}
-		log.Printf("[Response] %v Attacked", m.Author.Username)
+		log.Printf("[Response] %v %v Attacked", authorId, m.Author.Username)
 		s.ChannelMessageSend(m.ChannelID, report)
 	case "!str":
-		handleUpStats(s, m.ChannelID, "strength", m.Author.Username, m.Content)
+		handleUpStats(s, m.ChannelID, "strength", authorId, m.Author.Username, m.Content)
 	case "!agi":
-		handleUpStats(s, m.ChannelID, "agility", m.Author.Username, m.Content)
+		handleUpStats(s, m.ChannelID, "agility", authorId, m.Author.Username, m.Content)
 	case "!wis":
-		handleUpStats(s, m.ChannelID, "wisdom", m.Author.Username, m.Content)
+		handleUpStats(s, m.ChannelID, "wisdom", authorId, m.Author.Username, m.Content)
 	case "!con":
-		handleUpStats(s, m.ChannelID, "constitution", m.Author.Username, m.Content)
+		handleUpStats(s, m.ChannelID, "constitution", authorId, m.Author.Username, m.Content)
 	}
 
 	// GM commands
-	if m.Author.Username != configuration.GameMaster {
+	if authorId != configuration.GameMaster {
 		return
 	}
 
@@ -235,9 +242,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 }
 
-func handleUpStats(s *discordgo.Session, channelID string, stat string, username string, message string) {
+func handleUpStats(s *discordgo.Session, channelID string, stat string, userId int, username string, message string) {
 	statTrigram := stat[0:3]
-	log.Printf("[Request] Up %v stats for %v", stat, username)
+	log.Printf("[Request] Up %v stats for %v %v", stat, userId, username)
 	content := strings.TrimSpace(strings.TrimPrefix(message, "!"+statTrigram+" "))
 	amount, err := strconv.Atoi(content)
 	if err != nil {
@@ -252,13 +259,13 @@ func handleUpStats(s *discordgo.Session, channelID string, stat string, username
 		return
 	}
 
-	err = upStats(stat, username, amount)
+	err = upStats(stat, userId, amount)
 	if err != nil {
 		log.Printf("[Response] Error upgrading stat: %v", err)
 		s.ChannelMessageSend(channelID, "Répartition impossible.")
 		return
 	}
 
-	log.Printf("[Response] %v successfully upgraded %v stats", stat, username)
+	log.Printf("[Response] %v %v successfully upgraded %v stats", userId, username, stat)
 	s.ChannelMessageSend(channelID, "Répartition effectuée !")
 }

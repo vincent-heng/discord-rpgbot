@@ -12,25 +12,25 @@ import (
 
 func fetchCharacters() (string, error) {
 	// TODO update current hp, stamina and last update
-	rows, err := db.Query("SELECT name, level FROM character")
+	rows, err := db.Query("SELECT discord_id, level FROM character")
 	if err != nil {
 		return "", err
 	}
 
 	characters := ""
 	for rows.Next() {
-		var name string
+		var discordId int
 		var level int
-		err = rows.Scan(&name, &level)
+		err = rows.Scan(&discordId, &level)
 		if err != nil {
 			return "", err
 		}
-		characters += name + " (niv. " + strconv.Itoa(level) + ") "
+		characters += discordIdToText(discordId) + " (niv. " + strconv.Itoa(level) + ") "
 	}
 	return characters, nil
 }
 
-func fetchCharacterInfo(tx *sql.Tx, name string) (character, error) {
+func fetchCharacterInfo(tx *sql.Tx, userId int) (character, error) {
 	existingTransaction := tx != nil
 	if !existingTransaction {
 		var err error
@@ -40,7 +40,7 @@ func fetchCharacterInfo(tx *sql.Tx, name string) (character, error) {
 		}
 		defer tx.Rollback()
 	}
-	stmt, err := tx.Prepare("SELECT name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina FROM character WHERE name ~* $1")
+	stmt, err := tx.Prepare("SELECT discord_id, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina FROM character WHERE discord_id = $1")
 	if err != nil {
 		return character{}, err
 	}
@@ -48,11 +48,11 @@ func fetchCharacterInfo(tx *sql.Tx, name string) (character, error) {
 
 	characterInfo := character{}
 
-	rows, err := stmt.Query(name)
+	rows, err := stmt.Query(userId)
 	found := false
 	for rows.Next() {
 		found = true
-		rows.Scan(&characterInfo.name, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.currentHp, &characterInfo.stamina)
+		rows.Scan(&characterInfo.discordId, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.currentHp, &characterInfo.stamina)
 	}
 
 	if !existingTransaction {
@@ -79,7 +79,7 @@ func fetchBattleParticipants(tx *sql.Tx, monsterQueueId int) ([]character, error
 		}
 		defer tx.Rollback()
 	}
-	stmt, err := tx.Prepare("SELECT DISTINCT name, experience, level, skill_points FROM character INNER JOIN battle_participation ON character.name = battle_participation.character_name WHERE monster_queue_id = $1")
+	stmt, err := tx.Prepare("SELECT DISTINCT discord_id, experience, level, skill_points FROM character INNER JOIN battle_participation ON character.discord_id = battle_participation.discord_id WHERE monster_queue_id = $1")
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func fetchBattleParticipants(tx *sql.Tx, monsterQueueId int) ([]character, error
 	rows, err := stmt.Query(monsterQueueId)
 	for rows.Next() {
 		characterInfo := character{}
-		rows.Scan(&characterInfo.name, &characterInfo.experience, &characterInfo.level, &characterInfo.skillPoints)
+		rows.Scan(&characterInfo.discordId, &characterInfo.experience, &characterInfo.level, &characterInfo.skillPoints)
 		participants = append(participants, characterInfo)
 	}
 
@@ -143,36 +143,22 @@ func fetchMonsterInfo(tx *sql.Tx) (monster, error) {
 	return monsterInfo, nil
 }
 
-func createCharacter(name string) error {
+func createCharacter(discordId int) error {
+	characterToCreate := getDefaultCharacter()
+	characterToCreate.discordId = discordId
+
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer tx.Rollback()
-	stmt, err := tx.Prepare("SELECT COUNT(name) FROM character where name ~* $1")
+
+	stmt, err := tx.Prepare("INSERT INTO character(discord_id, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	rows, err := stmt.Query(name)
-	for rows.Next() {
-		var found int
-		rows.Scan(&found)
-		if found > 0 {
-			err = tx.Commit()
-			return errors.New("Character already exists")
-		}
-	}
-
-	characterToCreate := getDefaultCharacter()
-	characterToCreate.name = name
-
-	stmt, err = tx.Prepare("INSERT INTO character(name, class, experience, level, strength, agility, wisdom, constitution, skill_points, current_hp, stamina) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(characterToCreate.name, characterToCreate.class, characterToCreate.experience, characterToCreate.level, characterToCreate.strength, characterToCreate.agility, characterToCreate.wisdom, characterToCreate.constitution, characterToCreate.skillPoints, characterToCreate.currentHp, characterToCreate.stamina)
+	_, err = stmt.Exec(characterToCreate.discordId, characterToCreate.class, characterToCreate.experience, characterToCreate.level, characterToCreate.strength, characterToCreate.agility, characterToCreate.wisdom, characterToCreate.constitution, characterToCreate.skillPoints, characterToCreate.currentHp, characterToCreate.stamina)
 	if err != nil {
 		return err
 	}
@@ -234,20 +220,20 @@ func spawnMonster(monsterToSpawn monster) error {
 	return nil
 }
 
-func attackCurrentMonster(characterName string) (string, error) {
+func attackCurrentMonster(characterDiscordId int) (string, error) {
 
-	tx, err := db.Begin() // BEGIN TRANSACTION
+	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer tx.Rollback()
 
 	// Get Character
-	attacker, err := fetchCharacterInfo(tx, characterName)
+	attacker, err := fetchCharacterInfo(tx, characterDiscordId)
 	if err != nil {
 		return "", err
 	}
-	if attacker.name == "" {
+	if attacker.discordId == 0 {
 		return "", errors.New("Character not found")
 	}
 
@@ -284,15 +270,15 @@ func attackCurrentMonster(characterName string) (string, error) {
 	_, err = stmt.Exec(monsterTarget.currentHp, monsterTarget.monsterId)
 
 	// Add character to battle participation
-	stmt, err = tx.Prepare("INSERT INTO battle_participation(monster_queue_id, character_name) VALUES($1, $2)")
+	stmt, err = tx.Prepare("INSERT INTO battle_participation(monster_queue_id, character_discord_id) VALUES($1, $2)")
 	if err != nil {
 		return "", err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(monsterTarget.monsterId, attacker.name)
+	_, err = stmt.Exec(monsterTarget.monsterId, attacker.discordId)
 
-	resultText := "**" + characterName + "** inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts à **" + monsterTarget.monsterName + "**.\n"
+	resultText := "**" + discordIdToText(attacker.discordId) + "** inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts à **" + monsterTarget.monsterName + "**.\n"
 
 	if monsterTarget.currentHp <= 0 { // Target defeated
 		resultText = resultText + "L'adversaire est vaincu ! Le combat rapporte " + strconv.Itoa(monsterTarget.experience) + " points d'expérience partagés entre :\n"
@@ -305,7 +291,7 @@ func attackCurrentMonster(characterName string) (string, error) {
 		sharedExperience := (monsterTarget.experience) / len(participants)
 
 		for _, participant := range participants {
-			resultText = resultText + "- " + participant.name
+			resultText = resultText + "- " + discordIdToText(participant.discordId)
 			participant.experience = participant.experience + sharedExperience
 			newLevel := parseLevel(participant.experience)
 			if participant.level < newLevel {
@@ -318,13 +304,13 @@ func attackCurrentMonster(characterName string) (string, error) {
 				participant.skillPoints = participant.skillPoints + nbLevelUps*5
 			}
 			// update character: xp, level, skillPoints
-			stmt, err := tx.Prepare("UPDATE character SET experience = $1, level = $2, skill_points = $3 WHERE name = $4")
+			stmt, err := tx.Prepare("UPDATE character SET experience = $1, level = $2, skill_points = $3 WHERE discord_id = $4")
 			if err != nil {
 				return "", err
 			}
 			defer stmt.Close()
 
-			_, err = stmt.Exec(participant.experience, participant.level, participant.skillPoints, participant.name)
+			_, err = stmt.Exec(participant.experience, participant.level, participant.skillPoints, participant.discordId)
 
 			resultText = resultText + "\n"
 		}
@@ -339,7 +325,7 @@ func attackCurrentMonster(characterName string) (string, error) {
 	return resultText, nil
 }
 
-func upStats(statsToUp string, username string, amount int) error {
+func upStats(statsToUp string, userId int, amount int) error {
 
 	tx, err := db.Begin() // BEGIN TRANSACTION
 	if err != nil {
@@ -347,12 +333,12 @@ func upStats(statsToUp string, username string, amount int) error {
 	}
 	defer tx.Rollback()
 
-	character, err := fetchCharacterInfo(tx, username)
+	character, err := fetchCharacterInfo(tx, userId)
 	if err != nil {
 		return err // character unfetchable
 	}
 
-	if character.name == "" {
+	if character.discordId == 0 {
 		return errors.New("Character doesn't exist")
 	}
 
@@ -374,13 +360,13 @@ func upStats(statsToUp string, username string, amount int) error {
 	}
 	character.skillPoints = character.skillPoints - amount
 
-	stmt, err := tx.Prepare("UPDATE character SET strength = $1, agility = $2, wisdom = $3, constitution = $4, skill_points = $5 WHERE name = $6")
+	stmt, err := tx.Prepare("UPDATE character SET strength = $1, agility = $2, wisdom = $3, constitution = $4, skill_points = $5 WHERE discord_id = $6")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(character.strength, character.agility, character.wisdom, character.constitution, character.skillPoints, character.name)
+	_, err = stmt.Exec(character.strength, character.agility, character.wisdom, character.constitution, character.skillPoints, character.discordId)
 
 	err = tx.Commit() // COMMIT TRANSACTION
 	if err != nil {
