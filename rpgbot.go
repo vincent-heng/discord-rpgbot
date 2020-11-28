@@ -57,7 +57,7 @@ func main() {
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
-	log.Println("Bot is now running.  Press CTRL-C to exit.")
+	log.Println("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
@@ -79,22 +79,32 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	authorId, err := strconv.Atoi(strings.TrimSpace(m.Author.ID))
 	if err != nil {
-		log.Printf("[Response GM] Unexpected error (authorId not an integer)")
+		log.Printf("[Response] Unexpected error (authorId not an integer)")
 		s.ChannelMessageSend(m.ChannelID, "Erreur inattendue :cry:")
 	}
 
+	channelId, err := getChannelId()
+	if err != nil {
+		log.Printf("[Response] %v", err)
+		return
+	}
+	if channelId != m.ChannelID && authorId != configuration.GameMaster {
+		log.Printf("[Debug] Request on a wrong channel. Expected: %v, current: %v", channelId, m.ChannelID)
+		return
+	}
 
 	switch content[0] {
 	case "!characters":
 		log.Println("[Request] List characters")
 		characters, err := fetchCharacters()
 		if err != nil {
+			log.Printf("[Response] %v", err)
 			log.Printf("[Response] DB is unavailable")
 			s.ChannelMessageSend(m.ChannelID, "Impossible de récupérer la liste.")
-		} else {
-			log.Printf("[Response] %v", characters)
-			s.ChannelMessageSend(m.ChannelID, characters)
+			return
 		}
+		log.Printf("[Response] %v", characters)
+		s.ChannelMessageSend(m.ChannelID, characters)
 	case "!join_adventure":
 		log.Printf("[Request] Join adventure: %v", authorId)
 		err := createCharacter(authorId)
@@ -183,6 +193,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, "Error retrieving channel ID")
 			return
 		}
+		log.Printf("[Debug] channelId = %v", channelId)
 		if channelId == "" {
 			s.ChannelMessageSend(m.ChannelID, "Set the channel with !start_adventure")
 			return

@@ -79,7 +79,7 @@ func fetchBattleParticipants(tx *sql.Tx, monsterQueueId int) ([]character, error
 		}
 		defer tx.Rollback()
 	}
-	stmt, err := tx.Prepare("SELECT DISTINCT discord_id, experience, level, skill_points FROM character INNER JOIN battle_participation ON character.discord_id = battle_participation.discord_id WHERE monster_queue_id = $1")
+	stmt, err := tx.Prepare("SELECT DISTINCT discord_id, experience, level, skill_points FROM character INNER JOIN battle_participation ON character.discord_id = battle_participation.character_discord_id WHERE monster_queue_id = $1")
 	if err != nil {
 		return nil, err
 	}
