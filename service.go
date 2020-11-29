@@ -51,7 +51,9 @@ func fetchCharacterInfo(tx *sql.Tx, userId int) (character, error) {
 	found := false
 	for rows.Next() {
 		found = true
-		rows.Scan(&characterInfo.discordId, &characterInfo.class, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.currentHp, &characterInfo.stamina)
+		var classString *string
+		rows.Scan(&characterInfo.discordId, &classString, &characterInfo.experience, &characterInfo.level, &characterInfo.strength, &characterInfo.agility, &characterInfo.wisdom, &characterInfo.constitution, &characterInfo.skillPoints, &characterInfo.currentHp, &characterInfo.stamina)
+		characterInfo.class = getClass(*classString)
 	}
 
 	if !existingTransaction {
@@ -157,7 +159,7 @@ func createCharacter(discordId int) error {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(characterToCreate.discordId, characterToCreate.class, characterToCreate.experience, characterToCreate.level, characterToCreate.strength, characterToCreate.agility, characterToCreate.wisdom, characterToCreate.constitution, characterToCreate.skillPoints, characterToCreate.currentHp, characterToCreate.stamina)
+	_, err = stmt.Exec(characterToCreate.discordId, characterToCreate.class.String(), characterToCreate.experience, characterToCreate.level, characterToCreate.strength, characterToCreate.agility, characterToCreate.wisdom, characterToCreate.constitution, characterToCreate.skillPoints, characterToCreate.currentHp, characterToCreate.stamina)
 	if err != nil {
 		return err
 	}

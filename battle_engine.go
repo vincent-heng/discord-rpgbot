@@ -23,7 +23,7 @@ func attackCurrentMonster(characterDiscordId int) (string, error) {
 	endOfFight := false
 	var actionReport *string
 	switch attacker.class {
-	case "Combattant":
+	case FIGHTER:
 		endOfFight, actionReport, err = triggerFighterAction(tx, attacker, monster)
 		if err != nil {
 			return "", err
