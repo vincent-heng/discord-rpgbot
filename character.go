@@ -1,33 +1,18 @@
 package main
 
-type character struct {
-	discordId    int
-	class        Class
-	experience   int
-	level        int
-	strength     int
-	agility      int
-	wisdom       int
-	constitution int
-	skillPoints  int
-	currentHp    int
-	stamina      int
-}
+import "gorm.io/gorm"
 
-type Class int
-
-const (
-	FIGHTER Class = iota
-	MAGE
-)
-
-func getClass(classString string) Class {
-	return map[string]Class{
-		"Combattant": FIGHTER,
-		"Magicien":   MAGE,
-	}[classString]
-}
-
-func (s Class) String() string {
-	return [...]string{"Combattant", "Magicien"}[s]
+// Character represents a character in DB, played by a discord user
+type Character struct {
+	gorm.Model
+	Class        string
+	Experience   int
+	Level        int
+	Strength     int
+	Agility      int
+	Wisdom       int
+	Constitution int
+	SkillPoints  int
+	CurrentHp    int
+	Stamina      int
 }

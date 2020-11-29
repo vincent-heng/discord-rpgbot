@@ -1,12 +1,16 @@
 package main
 
-type monster struct {
-	monsterId    int
-	monsterName  string
-	experience   int
-	strength     int
-	agility      int
-	wisdom       int
-	constitution int
-	currentHp    int
+import "gorm.io/gorm"
+
+// Monster represents an opponent to the characters group
+type Monster struct {
+	gorm.Model
+	MonsterName  string
+	Experience   int
+	Strength     int
+	Agility      int
+	Wisdom       int
+	Constitution int
+	CurrentHp    int
+	Participants []*Character `gorm:"many2many:battle_participations;"`
 }

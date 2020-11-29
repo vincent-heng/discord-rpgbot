@@ -2,28 +2,47 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"strconv"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // Configuration filled from configuration file
 type Configuration struct {
 	DiscordBotKey string
-	GameMaster    int
+	GameMaster    uint
 }
 
-func initDb() (*sql.DB, error) {
-	DB_HOST := os.Getenv("DB_HOST")
-	DB_USER := os.Getenv("DB_USER")
-	DB_PASSWORD := os.Getenv("DB_PASSWORD")
+const (
+	dbName = "rpg"
+)
+
+func initDb() (*gorm.DB, error) {
+	dbHost := os.Getenv("DB_HOST")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
 
 	dbinfo := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
-	return sql.Open("postgres", dbinfo)
+		dbHost, dbUser, dbPassword, dbName)
+
+	db, err := gorm.Open(postgres.Open(dbinfo), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, table := range []interface{}{
+		&Character{}, &Monster{},
+	} {
+		if e := db.AutoMigrate(table); e != nil {
+			return nil, fmt.Errorf("Automigrate %+v failed: %w", table, e)
+		}
+	}
+	return db, nil
 }
 
 // loadConfiguration loads configuration from json file
@@ -50,7 +69,7 @@ func fileExists(fileName string) bool {
 	return true
 }
 
-func getChannelId() (string, error) {
+func getChannelID() (string, error) {
 	return readFile("current_channel.txt")
 }
 
@@ -62,63 +81,62 @@ func readFile(fileName string) (string, error) {
 	scanner := bufio.NewScanner(file)
 
 	success := scanner.Scan()
-	if success == false {
+	if success {
 		// False on error or EOF. Check error
 		err = scanner.Err()
 		if err == nil {
 			return "", nil
-		} else {
-			return "", err
 		}
+		return "", err
 	}
 
 	return scanner.Text(), nil
 }
 
-func characterToString(characterInfo character) string {
-	characterString := discordIdToText(characterInfo.discordId) + " (" + characterInfo.class.String() + ") - " + strconv.Itoa(characterInfo.currentHp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
-	characterString = characterString + "Endurance : " + strconv.Itoa(characterInfo.stamina) + " / 100\n"
-	characterString = characterString + "Niveau " + strconv.Itoa(characterInfo.level) + " (" + strconv.Itoa(characterInfo.experience) + " XP)\n"
-	characterString = characterString + "Force : " + strconv.Itoa(characterInfo.strength) + "\n"
-	characterString = characterString + "Agilité : " + strconv.Itoa(characterInfo.agility) + "\n"
-	characterString = characterString + "Sagesse : " + strconv.Itoa(characterInfo.wisdom) + "\n"
-	characterString = characterString + "Constitution : " + strconv.Itoa(characterInfo.constitution) + "\n"
+func characterToString(characterInfo Character) string {
+	characterString := discordIDToText(characterInfo.ID) + " (" + characterInfo.Class + ") - " + strconv.Itoa(characterInfo.CurrentHp) + " / " + strconv.Itoa(getMaxHP(characterInfo)) + " HP\n"
+	characterString = characterString + "Endurance : " + strconv.Itoa(characterInfo.Stamina) + " / 100\n"
+	characterString = characterString + "Niveau " + strconv.Itoa(characterInfo.Level) + " (" + strconv.Itoa(characterInfo.Experience) + " XP)\n"
+	characterString = characterString + "Force : " + strconv.Itoa(characterInfo.Strength) + "\n"
+	characterString = characterString + "Agilité : " + strconv.Itoa(characterInfo.Agility) + "\n"
+	characterString = characterString + "Sagesse : " + strconv.Itoa(characterInfo.Wisdom) + "\n"
+	characterString = characterString + "Constitution : " + strconv.Itoa(characterInfo.Constitution) + "\n"
 
-	if characterInfo.skillPoints > 0 {
+	if characterInfo.SkillPoints > 0 {
 		plural := ""
-		if characterInfo.skillPoints > 1 {
+		if characterInfo.SkillPoints > 1 {
 			plural = "s"
 		}
-		characterString = characterString + "\nIl vous reste " + strconv.Itoa(characterInfo.skillPoints) + " point" + plural + " à répartir.\n"
+		characterString = characterString + "\nIl vous reste " + strconv.Itoa(characterInfo.SkillPoints) + " point" + plural + " à répartir.\n"
 	}
 
 	return characterString
 }
 
-func monsterToString(monsterInfo monster) string {
-	return monsterInfo.monsterName + " - " + strconv.Itoa(monsterInfo.currentHp) + " / " + strconv.Itoa(getMaxHPMonster(monsterInfo)) + " HP\n"
+func monsterToString(monsterInfo Monster) string {
+	return monsterInfo.MonsterName + " - " + strconv.Itoa(monsterInfo.CurrentHp) + " / " + strconv.Itoa(getMaxHPMonster(monsterInfo)) + " HP\n"
 }
 
-func getMaxHP(characterInfo character) int {
-	return 10 + characterInfo.constitution + characterInfo.level
+func getMaxHP(characterInfo Character) int {
+	return 10 + characterInfo.Constitution + characterInfo.Level
 }
 
-func getMaxHPMonster(monsterInfo monster) int {
-	return 10 + monsterInfo.constitution
+func getMaxHPMonster(monsterInfo Monster) int {
+	return 10 + monsterInfo.Constitution
 }
 
-func getDefaultCharacter() character {
-	characterToCreate := character{}
-	characterToCreate.class = FIGHTER
-	characterToCreate.experience = 0
-	characterToCreate.level = 1
-	characterToCreate.strength = 1
-	characterToCreate.agility = 1
-	characterToCreate.wisdom = 1
-	characterToCreate.constitution = 1
-	characterToCreate.skillPoints = 5
-	characterToCreate.currentHp = getMaxHP(characterToCreate)
-	characterToCreate.stamina = 100
+func getDefaultCharacter() Character {
+	characterToCreate := Character{}
+	characterToCreate.Class = "Combattant"
+	characterToCreate.Experience = 0
+	characterToCreate.Level = 1
+	characterToCreate.Strength = 1
+	characterToCreate.Agility = 1
+	characterToCreate.Wisdom = 1
+	characterToCreate.Constitution = 1
+	characterToCreate.SkillPoints = 5
+	characterToCreate.CurrentHp = getMaxHP(characterToCreate)
+	characterToCreate.Stamina = 100
 	return characterToCreate
 }
 
@@ -129,6 +147,6 @@ func parseLevel(experience int) int {
 	return roundLevel
 }
 
-func discordIdToText(userId int) string {
-	return "<@" + strconv.Itoa(userId) + ">"
+func discordIDToText(userID uint) string {
+	return "<@" + strconv.FormatUint(uint64(userID), 10) + ">"
 }
