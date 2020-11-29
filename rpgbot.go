@@ -90,7 +90,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	if channelId != m.ChannelID && authorId != configuration.GameMaster {
 		log.Printf("[Debug] Request on a wrong channel. Expected: %v, current: %v", channelId, m.ChannelID)
-		return
+		// return
 	}
 
 	switch content[0] {

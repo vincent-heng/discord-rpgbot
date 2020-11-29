@@ -2,6 +2,7 @@ version: '3.1'
 volumes:
         postgres-data:
         current-channel:
+          driver: local
 services:
         rpgbot_db:
           image: postgres:alpine

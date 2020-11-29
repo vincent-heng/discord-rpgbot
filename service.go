@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
 )
@@ -218,111 +217,6 @@ func spawnMonster(monsterToSpawn monster) error {
 	}
 
 	return nil
-}
-
-func attackCurrentMonster(characterDiscordId int) (string, error) {
-
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tx.Rollback()
-
-	// Get Character
-	attacker, err := fetchCharacterInfo(tx, characterDiscordId)
-	if err != nil {
-		return "", err
-	}
-	if attacker.discordId == 0 {
-		return "", errors.New("Character not found")
-	}
-
-	// TODO Check has enough stamina
-
-	// Get Monster
-	monsterTarget, err := fetchMonsterInfo(tx)
-	if err != nil {
-		return "", err
-	}
-	if monsterTarget.monsterName == "" {
-		return "", errors.New("Monster not found")
-	}
-
-	// Compute fight
-	agilityBonus := rand.Intn(attacker.agility*2 + 1)
-	hitPoints := attacker.strength + agilityBonus
-	damageReduction := monsterTarget.agility
-	result := hitPoints - damageReduction
-	if result <= 0 { // At least 1 damage
-		result = 1
-	}
-	monsterTarget.currentHp = monsterTarget.currentHp - result
-
-	// TODO Use stamina
-
-	// Update monster's current hp
-	stmt, err := tx.Prepare("UPDATE monster_queue SET current_hp = $1 where monster_queue_id = $2")
-	if err != nil {
-		return "", err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(monsterTarget.currentHp, monsterTarget.monsterId)
-
-	// Add character to battle participation
-	stmt, err = tx.Prepare("INSERT INTO battle_participation(monster_queue_id, character_discord_id) VALUES($1, $2)")
-	if err != nil {
-		return "", err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(monsterTarget.monsterId, attacker.discordId)
-
-	resultText := "**" + discordIdToText(attacker.discordId) + "** inflige " + strconv.Itoa(result) + " (" + strconv.Itoa(attacker.strength) + "+" + strconv.Itoa(agilityBonus) + "-" + strconv.Itoa(monsterTarget.agility) + ") points de dégâts à **" + monsterTarget.monsterName + "**.\n"
-
-	if monsterTarget.currentHp <= 0 { // Target defeated
-		resultText = resultText + "L'adversaire est vaincu ! Le combat rapporte " + strconv.Itoa(monsterTarget.experience) + " points d'expérience partagés entre :\n"
-		// Gain XP for every participants
-		participants, err := fetchBattleParticipants(tx, monsterTarget.monsterId)
-		if err != nil {
-			return "", err
-		}
-
-		sharedExperience := (monsterTarget.experience) / len(participants)
-
-		for _, participant := range participants {
-			resultText = resultText + "- " + discordIdToText(participant.discordId)
-			participant.experience = participant.experience + sharedExperience
-			newLevel := parseLevel(participant.experience)
-			if participant.level < newLevel {
-				nbLevelUps := newLevel - participant.level
-				resultText = resultText + ": Gain de niveau ! "
-				if nbLevelUps > 1 {
-					resultText = resultText + " x" + strconv.Itoa(nbLevelUps)
-				}
-				participant.level = newLevel
-				participant.skillPoints = participant.skillPoints + nbLevelUps*5
-			}
-			// update character: xp, level, skillPoints
-			stmt, err := tx.Prepare("UPDATE character SET experience = $1, level = $2, skill_points = $3 WHERE discord_id = $4")
-			if err != nil {
-				return "", err
-			}
-			defer stmt.Close()
-
-			_, err = stmt.Exec(participant.experience, participant.level, participant.skillPoints, participant.discordId)
-
-			resultText = resultText + "\n"
-		}
-
-	}
-
-	err = tx.Commit() // COMMIT TRANSACTION
-	if err != nil {
-		return "", err
-	}
-
-	return resultText, nil
 }
 
 func upStats(statsToUp string, userId int, amount int) error {
