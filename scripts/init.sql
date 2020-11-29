@@ -1,6 +1,6 @@
 CREATE DATABASE rpg;
 \connect rpg
-CREATE TABLE "character" (
+CREATE TABLE "characters" (
     "discord_id" bigint PRIMARY KEY,
     "class" text NOT NULL,
     "experience" integer DEFAULT '0' NOT NULL,
@@ -14,8 +14,8 @@ CREATE TABLE "character" (
     "stamina" integer  DEFAULT '100' NOT NULL
 ) WITH (oids = false);
 
-CREATE TABLE "monster_queue" (
-    "monster_queue_id" SERIAL PRIMARY KEY,
+CREATE TABLE "monsters" (
+    "monster_id" SERIAL PRIMARY KEY,
     "monster_name" text NOT NULL,
     "experience" integer DEFAULT '0' NOT NULL,
     "strength" integer DEFAULT '1' NOT NULL,
@@ -32,5 +32,4 @@ CREATE TABLE "battle_participation" (
   "monster_queue_id" integer,
   "character_discord_id" bigint
 ) WITH (oids = false);
-CREATE INDEX battle_participation_monster_id
-ON battle_participation (monster_queue_id);
+
