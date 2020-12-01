@@ -52,7 +52,7 @@ func getParticipants(tx *gorm.DB, characterDiscordID uint) (*Character, *Monster
 		return nil, nil, err
 	}
 
-	monsterTarget, err := fetchMonsterInfo(tx)
+	monsterTarget, err := fetchMonsterWithParticipants(tx)
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil, errors.New("Monster not found")
 	}

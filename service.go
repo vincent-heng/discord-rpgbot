@@ -42,6 +42,15 @@ func fetchMonsterInfo(tx *gorm.DB) (Monster, error) {
 	return monsterInfo, nil
 }
 
+func fetchMonsterWithParticipants(tx *gorm.DB) (Monster, error) {
+	var monsterInfo Monster
+	if e := tx.Joins("Character").Where("current_hp > 0").First(&monsterInfo).Error; e != nil {
+		return Monster{}, e
+	}
+
+	return monsterInfo, nil
+}
+
 func createCharacter(discordID uint) error {
 	characterToCreate := getDefaultCharacter()
 	characterToCreate.ID = discordID
