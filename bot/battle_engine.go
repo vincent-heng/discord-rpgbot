@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"errors"
 	"math"
 	"math/rand"
 	"strconv"
@@ -32,7 +31,9 @@ func (b *Bot) attackCurrentMonster(characterID uint) (string, error) {
 	}
 
 	// Add character to battle participation
-	monster.Participants = append(monster.Participants, attacker)
+	if e := tx.Model(monster).Association("Participants").Append(attacker); e != nil {
+		return "", e
+	}
 
 	if endOfFight { // Target defeated
 		report, err := b.computeVictory(tx, monster)
@@ -59,7 +60,8 @@ func (b *Bot) computeVictory(tx *db.DB, monsterTarget *db.Monster) (string, erro
 		" points d'expérience partagés entre :\n"
 
 	// Gain XP for every participants
-	participants := monsterTarget.Participants
+	var participants []db.Character
+	tx.Model(monsterTarget).Association("Participants").Find(&participants)
 
 	sharedExperience := (monsterTarget.Experience) / len(participants)
 
@@ -79,14 +81,14 @@ func (b *Bot) computeVictory(tx *db.DB, monsterTarget *db.Monster) (string, erro
 			participant.SkillPoints = participant.SkillPoints + nbLevelUps*5
 		}
 
-		if err := tx.Save(participant).Error; err != nil {
+		if err := tx.Save(&participant).Error; err != nil {
 			return "", err
 		}
 
 		report += "\n"
 	}
 
-	return report, tx.Commit().Error
+	return report, nil
 }
 
 func (b *Bot) triggerFighterAction(tx *db.DB, attacker *db.Character, monster *db.Monster) (bool, string, error) {
@@ -99,9 +101,8 @@ func (b *Bot) triggerFighterAction(tx *db.DB, attacker *db.Character, monster *d
 	}
 	monster.CurrentHp = monster.CurrentHp - damage
 
-	result := tx.Model(&db.Monster{Model: gorm.Model{ID: monster.ID}}).Update("current_hp", monster.CurrentHp)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return false, "", result.Error
+	if e := tx.Model(&db.Monster{Model: gorm.Model{ID: monster.ID}}).Update("current_hp", monster.CurrentHp).Error; e != nil {
+		return false, "", e
 	}
 
 	endOfFight := monster.CurrentHp <= 0

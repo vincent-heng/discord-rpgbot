@@ -132,15 +132,16 @@ func (b *Bot) Handler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		log.Error().Err(err).Msg("[Response]")
 		return
 	}
-	if channelID != m.ChannelID && authorID != b.Config.GameMaster {
-		log.Warn().Str("expected", channelID).Str("current", m.ChannelID).Msg("request on a wrong channel")
-		// return
-	}
 
 	handler, ok := router[content[0][1:]]
 	if !ok {
 		// not a cmd
 		return
+	}
+
+	if channelID != m.ChannelID && authorID != b.Config.GameMaster {
+		log.Warn().Str("expected", channelID).Str("current", m.ChannelID).Msg("request on a wrong channel")
+		// return
 	}
 
 	uuid := uuid.New().String()

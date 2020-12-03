@@ -52,7 +52,7 @@ func (db *DB) GetParticipants(characterDiscordID uint) (*Character, *Monster, er
 		return nil, nil, fmt.Errorf("cannot get character info: %w", err)
 	}
 
-	monsterTarget, err := db.FetchMonsterWithParticipants()
+	monsterTarget, err := db.FetchMonsterInfo()
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil, fmt.Errorf("monster not found: %w", err)
 	}

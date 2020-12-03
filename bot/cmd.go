@@ -61,6 +61,9 @@ func (b *Bot) watchCmd(s *discordgo.Session, m *discordgo.MessageCreate, _ uint)
 func (b *Bot) hitCmd(s *discordgo.Session, m *discordgo.MessageCreate, authorID uint) _Response {
 	report, err := b.attackCurrentMonster(authorID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return simpleResponse("Il n'y a plus de monstre... pour l'instant !")
+		}
 		return simpleErr(fmt.Errorf("cannot attack monster: %w", err), "Impossible d'attaquer.")
 	}
 

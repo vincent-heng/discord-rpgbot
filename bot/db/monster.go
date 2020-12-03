@@ -31,11 +31,6 @@ func (db *DB) FetchMonsterInfo() (m Monster, e error) {
 	return
 }
 
-func (db *DB) FetchMonsterWithParticipants() (m Monster, e error) {
-	e = db.Where("current_hp > 0").First(&m).Error
-	return
-}
-
 func (db *DB) SpawnMonster(m Monster) error {
 	return db.Create(&m).Error
 }
