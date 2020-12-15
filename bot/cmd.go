@@ -141,6 +141,7 @@ func (b *Bot) spawnCmd(s *discordgo.Session, m *discordgo.MessageCreate, _ uint)
 		}
 		*ptr = value
 	}
+	_m.CurrentHp = _m.GetMaxHP()
 
 	if err := b.db.SpawnMonster(_m); err != nil {
 		return simpleErr(fmt.Errorf("spawning monster: %w", err), "Error spawning monster")
